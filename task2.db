@@ -1,0 +1,136 @@
+CREATE DATABASE library;
+USE library;
+CREATE TABLE Authors (
+    author_id INT PRIMARY KEY AUTO_INCREMENT,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    birth_year INT
+);
+
+CREATE TABLE Genres (
+    genre_id INT PRIMARY KEY AUTO_INCREMENT,
+    genre_name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE Books (
+    book_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    isbn VARCHAR(20) UNIQUE NOT NULL,
+    publication_year INT,
+    author_id INT NOT NULL,
+    genre_id INT NOT NULL,
+    available_copies INT NOT NULL DEFAULT 1,
+    FOREIGN KEY (author_id) REFERENCES Authors(author_id),
+    FOREIGN KEY (genre_id) REFERENCES Genres(genre_id)
+);
+
+CREATE TABLE Members (
+    member_id INT PRIMARY KEY AUTO_INCREMENT,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone_number VARCHAR(20)
+);
+
+CREATE TABLE Loans (
+    loan_id INT PRIMARY KEY AUTO_INCREMENT,
+    book_id INT NOT NULL,
+    member_id INT NOT NULL,
+    loan_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    return_date DATE,
+    FOREIGN KEY (book_id) REFERENCES Books(book_id),
+    FOREIGN KEY (member_id) REFERENCES Members(member_id)
+);
+
+CREATE TABLE Fines (
+    fine_id INT PRIMARY KEY AUTO_INCREMENT,
+    loan_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
+    FOREIGN KEY (loan_id) REFERENCES Loans(loan_id)
+);
+
+INSERT INTO Authors (first_name, last_name, birth_year) VALUES
+('Stephen', 'King', 1947),
+('J.K.', 'Rowling', 1965),
+('George', 'Orwell', 1903);
+
+INSERT INTO Genres (genre_name) VALUES
+('Horror'),
+('Fantasy'),
+('Dystopian');
+
+INSERT INTO Members (first_name, last_name, email, phone_number) VALUES
+('John', 'Doe', 'john.doe@email.com', '555-1234'),
+('Jane', 'Smith', 'jane.smith@email.com', '555-5678'),
+('Peter', 'Jones', 'p.jones@email.com', NULL); -- Example of handling a missing value with NULL
+
+INSERT INTO Books (title, isbn, publication_year, author_id, genre_id, available_copies) VALUES
+('The Shining', '9780385195679', 1977, (SELECT author_id FROM Authors WHERE first_name = 'Stephen' AND last_name = 'King'), (SELECT genre_id FROM Genres WHERE genre_name = 'Horror'), 10),
+('Harry Potter and the Sorcerer''s Stone', '9780590353427', 1997, (SELECT author_id FROM Authors WHERE first_name = 'J.K.' AND last_name = 'Rowling'), (SELECT genre_id FROM Genres WHERE genre_name = 'Fantasy'), 15),
+('1984', '9780451524935', 1949, (SELECT author_id FROM Authors WHERE first_name = 'George' AND last_name = 'Orwell'), (SELECT genre_id FROM Genres WHERE genre_name = 'Dystopian'), 5);
+
+SELECT * FROM Authors;
+SELECT * FROM Genres;
+SELECT * FROM Members;
+SELECT * FROM Books;
+
+INSERT INTO Loans (book_id, member_id, loan_date, due_date) VALUES
+(
+    (SELECT book_id FROM Books WHERE title = '1984'),
+    (SELECT member_id FROM Members WHERE first_name = 'John' AND last_name = 'Doe'),
+    CURDATE(),
+    DATE_ADD(CURDATE(), INTERVAL 14 DAY)
+);
+
+INSERT INTO Loans (book_id, member_id, loan_date, due_date) VALUES
+(
+    (SELECT book_id FROM Books WHERE title = 'The Shining'),
+    (SELECT member_id FROM Members WHERE first_name = 'Jane' AND last_name = 'Smith'),
+    CURDATE(),
+    DATE_ADD(CURDATE(), INTERVAL 14 DAY)
+);
+
+
+UPDATE Books
+SET available_copies = available_copies - 1
+WHERE title = '1984';
+
+UPDATE Members
+SET phone_number = '555-9876'
+WHERE first_name = 'Peter' AND last_name = 'Jones';
+
+UPDATE Loans
+SET return_date = CURDATE()
+WHERE book_id = (SELECT book_id FROM Books WHERE title = 'The Shining')
+AND member_id = (SELECT member_id FROM Members WHERE first_name = 'Jane' AND last_name = 'Smith')
+AND return_date IS NULL;
+
+UPDATE Books
+SET available_copies = available_copies + 1
+WHERE title = 'The Shining';
+
+INSERT INTO Fines (loan_id, amount) VALUES
+(
+    (SELECT loan_id FROM Loans WHERE book_id = (SELECT book_id FROM Books WHERE title = '1984') AND member_id = (SELECT member_id FROM Members WHERE first_name = 'John')),
+    5.00
+);
+
+SELECT * FROM Books;
+SELECT * FROM Members;
+SELECT * FROM Loans;
+SELECT * FROM Fines;
+
+DELETE FROM Fines
+WHERE loan_id = (SELECT loan_id FROM Loans WHERE book_id = (SELECT book_id FROM Books WHERE title = '1984'));
+
+DELETE FROM Loans
+WHERE member_id = (SELECT member_id FROM Members WHERE first_name = 'John');
+
+DELETE FROM Members
+WHERE first_name = 'John';
+
+SELECT * FROM Fines;
+SELECT * FROM Loans;
+SELECT * FROM Members;
